@@ -1,6 +1,6 @@
-# Disparities in Obesity Across Brazil
+# Entre crescimento e fragmentação
 
-Este repositório contém os materiais do artigo "Disparities in Obesity Across Brazil: A Multimodel Analysis of Regional, Demographic, and Health Drivers".
+Este repositório contém os materiais do artigo "Entre Crescimento e Fragmentação: O Direito à Alimentação na Pesquisa Acadêmica Brasileira (2014-2023)".
 
 ## Estrutura do Repositório
 - **manuscript/**: Manuscrito do artigo (word).
