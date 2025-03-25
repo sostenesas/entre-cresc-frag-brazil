@@ -12,6 +12,7 @@ library(writexl)
 
 ### Carregar a base de dados do OpenAlex
 # O caminho do arquivo precisa ser ajustado para o local correto
+# Tratar as tabelas no excel antes de fazer a análise quantitativa
 df_rev_alim <- read_xlsx("caminho_para_arquivo.xlsx")
 
 ### Filtragem de artigos relevantes
