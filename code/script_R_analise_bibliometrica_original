@@ -1,0 +1,271 @@
+##Carrega os pacotes necessários
+
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(ggwordcloud)
+library(tm)
+
+### Carregar a base de dados do OpenAlex
+### Mudar caminho para onde está a base de dados
+
+df_rev_alim <- readxl::read_xlsx("plan_art_dt_alim_nova.xlsx")
+
+### Filtrando artigos sem pertinência temática
+
+keywords <- c("direito à alimentação", "direito humano à alimentação",
+              "direito social à alimentação","segurança alimentar", 
+              "segurança nutricional", "segurança alimentar e nutricional",
+              "alimentação adequada", "soberania alimentar")
+
+# Criar um padrão regex para filtrar qualquer um dos termos, 
+# ignorando maiúsculas/minúsculas
+
+pattern <- paste(keywords, collapse = "|")
+
+# Filtrar os artigos que contêm pelo menos um dos termos no abstract
+
+# Base de dados temática
+df_rev_alim1 <- df_rev_alim %>% 
+  filter(grepl(pattern, abstract, ignore.case = TRUE))%>%
+  mutate(n_author = str_count(authorships.raw_author_name, "\\|") + 1)
+
+# Base de dados para revisão narativa
+df_rev_alim2 <- df_rev_alim1%>%
+  filter(!is.na(publication_year))%>%
+  filter(as.numeric(cited_by_count) >= 10)
+
+# Salvar resultados
+
+writexl::write_xlsx(df_rev_alim2, "art_rev_narr_dt_alim.xlsx")
+
+### Plotando gráficos iniciais
+
+ggplot(df_rev_alim1 %>% 
+         group_by(publication_year) %>% 
+         summarise(n = n()), 
+       aes(x = publication_year, y = n)) +
+  geom_col()+
+  theme_bw() +
+  labs(
+    x = "Ano",
+    y = "Total de artigos"
+  )
+
+ggplot(df_rev_alim1 %>% 
+         group_by(publication_year) %>% 
+         summarise(n = n()), 
+       aes(x = publication_year, y = n)) +
+  geom_point() +
+  geom_line(aes(group = 1))+
+  theme_bw() +
+  labs(
+    x = "Ano",
+    y = "Total de artigos"
+  )
+
+ggplot(df_rev_alim1, aes(x = as.factor(publication_year), y = as.numeric(cited_by_count))) +
+  geom_col() +
+  theme_bw()+
+  labs(
+    x = "Ano",
+    y = "Total de citações",
+  )
+
+ggplot(df_rev_alim1,
+       aes(x = as.factor(publication_year), y = as.numeric(cited_by_count),
+           colour = as.numeric(cited_by_count))) +
+  geom_point(position = position_jitter(width = 0.4)) +
+  scale_color_viridis_c(option = "viridis", direction = 1)+
+  theme_bw()+
+  labs(
+    x = "Ano",
+    y = "Total de citações",
+    colour = ""
+  )
+
+ggplot(df_rev_alim1) +
+  aes(
+    x = publication_year,
+    y = n_author
+  ) +
+  geom_col()+
+  theme_bw()+
+  labs(
+    x = "Ano",
+    y = "Total de autores",
+  )
+
+ggplot(df_rev_alim1) +
+  aes(
+    x = publication_year,
+    y = n_author,
+    colour = n_author
+  ) +
+  geom_point(position = position_jitter(width = 0.4)) +
+  scale_color_viridis_c(option = "viridis", direction = 1)+
+  theme_bw()+
+  labs(
+    x = "Ano",
+    y = "Total de autores por documento",
+    colour = ""
+  )
+
+ggplot(df_rev_alim1, aes(x=open_access.oa_status, fill = open_access.oa_status))+
+  geom_bar()+
+  theme_bw()+
+  labs(x = "Tipo de acesso ao documento",
+       y = "Total",
+       fill = "")
+
+ggplot(df_rev_alim1, aes(x=primary_topic.domain.display_name, fill= primary_topic.domain.display_name))+
+  geom_bar()+
+  theme_bw()+
+  labs(x = "Tópico",
+       y = "Total",
+       fill = "")
+
+ggplot(df_rev_alim1, aes(x=type, fill = type))+
+  geom_bar()+
+  theme_bw()+
+  labs(x = "Tipo de documento",
+       y = "Total",
+       fill = "")
+
+ggplot(df_rev_alim1, aes(x= as.numeric(referenced_works_count),
+                         y= as.numeric(cited_by_count),
+                         color = publication_year))+
+  geom_point()+
+  theme_bw()+
+  labs(x = "Total de citações por documento",
+       y = "Total de trabalhos citados por documento",
+       color = "")
+
+ggplot(df_rev_alim1, aes(x = as.numeric(fwci),
+                         y = as.numeric(relevance_score),
+                         color = publication_year,
+                         group = publication_year))+
+  geom_jitter()+
+  theme_bw()+
+  labs(x = "Field Weighted Citation Impact - FWCI",
+       y = "Score de relevância",
+       color = "")
+
+ggplot(df_rev_alim1, aes(x = as.numeric(fwci),
+                         y = as.numeric(cited_by_count)))+
+  geom_point()+
+  geom_smooth()+
+  theme_bw()+
+  labs(x = "Field Weighted Citation Impact - FWCI",
+       y = "Citações",
+       color = "")
+
+
+# Calcular a soma das citações e a média de citações por artigo para cada ano
+df_citations_per_year <- df_rev_alim1 %>%
+  group_by(publication_year) %>%
+  summarise(
+    total_cites = sum(as.numeric(cited_by_count), na.rm = TRUE),
+    num_articles = n(),
+    avg_cites_per_article = total_cites / num_articles
+  )
+
+median_cites1 <- median(df_citations_per_year$avg_cites_per_article)
+sd_cites1 <- sd(df_citations_per_year$avg_cites_per_article)
+
+# Calcular a soma das citações, total de autores e a média ponderada de citações por autor para cada ano
+df_citations_per_author <- df_rev_alim1 %>% 
+  group_by(publication_year) %>%
+  summarise(
+    total_cites = sum(as.numeric(cited_by_count), na.rm = TRUE),
+    total_authors = sum(n_author, na.rm = TRUE),
+    avg_cites_per_author = total_cites / total_authors
+  )
+
+median_cites <- median(df_citations_per_author$avg_cites_per_author)
+
+# Criar um corpus a partir do texto
+corpus <- Corpus(VectorSource(df_rev_alim$abstract))
+
+# Limpeza do texto
+corpus <- tm_map(corpus, content_transformer(tolower)) # Minúsculas
+corpus <- tm_map(corpus, removePunctuation) # Remover pontuação
+corpus <- tm_map(corpus, removeNumbers) # Remover números
+corpus <- tm_map(corpus, removeWords, stopwords("portuguese")) # Remover palavras comuns
+
+# Criar uma matriz de termos
+dtm <- TermDocumentMatrix(corpus)
+m <- as.matrix(dtm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE)
+
+# Criar um data frame com palavras e frequências
+df_words <- data.frame(word = names(word_freqs), freq = word_freqs)
+
+# Gerar a nuvem de palavras com ggwordcloud
+df_words %>%
+  top_n(100, freq) %>% 
+  ggplot(aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+
+# Criar um corpus a partir do texto
+corpus1 <- Corpus(VectorSource(df_rev_alim1$abstract))
+
+# Limpeza do texto
+corpus1 <- tm_map(corpus1, content_transformer(tolower)) # Minúsculas
+corpus1 <- tm_map(corpus1, removePunctuation) # Remover pontuação
+corpus1 <- tm_map(corpus1, removeNumbers) # Remover números
+corpus1 <- tm_map(corpus1, removeWords, stopwords("portuguese")) # Remover palavras comuns
+
+# Criar uma matriz de termos
+dtm <- TermDocumentMatrix(corpus1)
+m <- as.matrix(dtm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE)
+
+# Criar um data frame com palavras e frequências
+df_words1 <- data.frame(word = names(word_freqs), freq = word_freqs)
+
+# Gerar a nuvem de palavras com ggwordcloud
+df_words1 %>%
+  top_n(100, freq) %>% 
+  ggplot(aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+
+# Criar um corpus a partir do texto
+corpus2 <- Corpus(VectorSource(df_rev_alim2$abstract))
+
+# Limpeza do texto
+corpus2 <- tm_map(corpus2, content_transformer(tolower)) # Minúsculas
+corpus2 <- tm_map(corpus2, removePunctuation) # Remover pontuação
+corpus2 <- tm_map(corpus2, removeNumbers) # Remover números
+corpus2 <- tm_map(corpus2, removeWords, stopwords("portuguese")) # Remover palavras comuns
+
+# Criar uma matriz de termos
+dtm <- TermDocumentMatrix(corpus2)
+m <- as.matrix(dtm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE)
+
+# Criar um data frame com palavras e frequências
+df_words2 <- data.frame(word = names(word_freqs), freq = word_freqs)
+
+# Gerar a nuvem de palavras com ggwordcloud
+df_words2 %>%
+  top_n(100, freq) %>% 
+  ggplot(aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+
+df_combined <- merge(df_words, df_words2, by = "word", all = TRUE)
+
+# Substituir valores NA (palavras ausentes em uma das nuvens) por 0
+df_combined[is.na(df_combined)] <- 0
+
+# Calcular correlação de Spearman
+correlation_spearman <- cor(df_combined$freq.x, df_combined$freq.y, method = "spearman")
+print(correlation_spearman)
+
+write_csv(df_rev_alim3, "base_limpa_revisão.csv")
+write_csv(df_rev_alim1, "base_1_revisão.csv")
