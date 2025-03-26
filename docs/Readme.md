@@ -18,7 +18,7 @@ Este repositório contém os materiais do artigo "Entre Crescimento e Fragmenta�
 4. Os resultados do script 'analise_bibliometrica_dt_alimentacao.R' serão gerados em `figures/` e `tables/`.
 
 ## Dados
-Os dados são provenientes da base bibliográfica da plataforma OpenAlex. Consulte `data/data_description.md` para instruções de acesso via OpenAlex.
+Os dados são provenientes da base bibliográfica da plataforma OpenAlex. Consulte `data/data_description.md` para instruções de acesso via OpenAlex. Há também dados do Google Trends sobre a busca de termos chaves (`time_line_term_dt_alim.txt`) que deve ser processado em script próprio.
 
 ## Licença
 Este projeto está licenciado sob [MIT License](LICENSE).
