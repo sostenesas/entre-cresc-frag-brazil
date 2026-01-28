@@ -22,6 +22,11 @@ jobs:
       - name: Install R packages
         run: |
           R -e 'install.packages(c("targets","dplyr","tibble"))'
+
+      - name: Prepare _targets/meta directory
+        run: |
+          rm -f _targets/meta
+          mkdir -p _targets/meta
       - name: Run targets smoke snapshot
         run: |
           R -e 'targets::tar_make(names = "smoke_snapshot")'
